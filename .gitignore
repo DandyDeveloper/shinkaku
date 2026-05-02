@@ -1,0 +1,21 @@
+# Go
+backend/nihongo-sensei
+backend/*.db
+backend/nihongo.db
+*.db
+*.db-shm
+*.db-wal
+
+# Node / SvelteKit
+frontend/node_modules/
+frontend/.svelte-kit/
+frontend/build/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# General
+.DS_Store
+Thumbs.db
+*.log
+.env

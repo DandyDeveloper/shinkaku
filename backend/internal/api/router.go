@@ -38,6 +38,9 @@ func NewRouter(database *db.DB, ollamaClient *llm.Client, authHandler *auth.Hand
 
 		// LLM challenge
 		r.Post("/challenge/grade", gradeChallenge(database, ollamaClient))
+
+		// Import log
+		r.Get("/import/log", listImportLog(database))
 	})
 
 	// Health check

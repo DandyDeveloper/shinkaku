@@ -17,7 +17,7 @@ services:
     env_file: .env
     environment:
       DB_PATH: /data/shinkaku.db
-      OLLAMA_URL: http://ollama:11434
+      OLLAMA_URL: http://ollama:5555
     volumes:
       - backend-data:/data
     depends_on:
@@ -40,9 +40,16 @@ services:
     image: ollama/ollama:latest
     # Not exposed externally in production — only reachable by backend
     expose:
-      - "11434"
+      - "5555"
     volumes:
       - ollama-data:/root/.ollama
+    # AMD GPU support (ROCm): pass through required device nodes.
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    group_add:
+      - video
+      - render
     # Uncomment for NVIDIA GPU support:
     # deploy:
     #   resources:

@@ -19,7 +19,7 @@ services:
       # Override DB path to use the mounted volume
       DB_PATH: /data/shinkaku.db
       # Reach Ollama by container name
-      OLLAMA_URL: http://ollama:11434
+      OLLAMA_URL: http://ollama:5555
     volumes:
       - backend-data:/data
     depends_on:
@@ -44,9 +44,16 @@ services:
   ollama:
     image: ollama/ollama:latest
     ports:
-      - "11434:11434"
+      - "5555:5555"
     volumes:
       - ollama-data:/root/.ollama
+    # AMD GPU support (ROCm): pass through required device nodes.
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    group_add:
+      - video
+      - render
     # Uncomment for NVIDIA GPU support:
     # deploy:
     #   resources:

@@ -1,0 +1,497 @@
+openapi: "3.1.0"
+
+info:
+  title: ShinKaku API
+  description: |
+    Japanese SRS grammar learning backend.
+    All `/api/*` routes require an authenticated session (Google OIDC).
+    Authenticate via `/auth/login` first.
+  version: "0.1.0"
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: grammar
+    description: Grammar point management
+  - name: review
+    description: SRS review queue and grading
+  - name: challenge
+    description: LLM-powered sentence grading
+  - name: auth
+    description: Google OIDC authentication
+  - name: system
+    description: Health and meta endpoints
+
+# ---------------------------------------------------------------------------
+# Security
+# ---------------------------------------------------------------------------
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: nihongo_session
+
+  schemas:
+    GrammarPoint:
+      type: object
+      required: [id, jlpt_level, pattern, meaning, created_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        jlpt_level:
+          type: string
+          enum: [N1, N2, N3, N4, N5]
+          example: N4
+        pattern:
+          type: string
+          example: "〜てもいい"
+        meaning:
+          type: string
+          example: "It is okay to / You may"
+        example_jp:
+          type: string
+          example: "ここに座ってもいいですか？"
+        example_en:
+          type: string
+          example: "May I sit here?"
+        notes:
+          type: string
+          example: "Polite permission. Negative: 〜てはいけない"
+        source:
+          type: string
+          example: hanabira
+        created_at:
+          type: string
+          format: date-time
+
+    GrammarPointInput:
+      type: object
+      required: [pattern, meaning]
+      properties:
+        jlpt_level:
+          type: string
+          enum: [N1, N2, N3, N4, N5]
+        pattern:
+          type: string
+        meaning:
+          type: string
+        example_jp:
+          type: string
+        example_en:
+          type: string
+        notes:
+          type: string
+        source:
+          type: string
+
+    ReviewCard:
+      type: object
+      required: [id, grammar_point_id, interval, repetitions, e_factor, due_date]
+      properties:
+        id:
+          type: integer
+          format: int64
+        grammar_point_id:
+          type: integer
+          format: int64
+        interval:
+          type: integer
+          description: Days until next review
+          example: 4
+        repetitions:
+          type: integer
+          description: Consecutive correct reviews
+          example: 2
+        e_factor:
+          type: number
+          format: float
+          description: SM-2 ease factor (min 1.3)
+          example: 2.5
+        due_date:
+          type: string
+          format: date-time
+        last_reviewed:
+          type: string
+          format: date-time
+          nullable: true
+
+    QueueItem:
+      allOf:
+        - $ref: "#/components/schemas/ReviewCard"
+        - type: object
+          required: [grammar_point]
+          properties:
+            grammar_point:
+              $ref: "#/components/schemas/GrammarPoint"
+
+    ReviewQueue:
+      type: object
+      required: [cards, total]
+      properties:
+        cards:
+          type: array
+          items:
+            $ref: "#/components/schemas/QueueItem"
+        total:
+          type: integer
+          example: 12
+
+    GradeRequest:
+      type: object
+      required: [grade]
+      properties:
+        grade:
+          type: integer
+          minimum: 0
+          maximum: 5
+          description: |
+            SM-2 quality rating:
+            5 = perfect recall, 4 = correct with hesitation,
+            3 = correct with difficulty, 2 = incorrect but remembered on seeing answer,
+            1 = incorrect, easy to recall, 0 = complete blackout
+          example: 4
+
+    GradeResult:
+      type: object
+      required: [card_id, new_interval, repetitions, e_factor, next_due]
+      properties:
+        card_id:
+          type: integer
+          format: int64
+        new_interval:
+          type: integer
+          description: Scheduled interval in days
+          example: 4
+        repetitions:
+          type: integer
+          example: 3
+        e_factor:
+          type: number
+          format: float
+          example: 2.36
+        next_due:
+          type: string
+          format: date-time
+
+    ChallengeRequest:
+      type: object
+      required: [grammar_point_id, user_sentence]
+      properties:
+        grammar_point_id:
+          type: integer
+          format: int64
+          example: 7
+        user_sentence:
+          type: string
+          example: "明日、早く起きてもいいですか？"
+
+    LLMGrade:
+      type: object
+      required: [correct, explanation]
+      properties:
+        correct:
+          type: boolean
+          example: true
+        explanation:
+          type: string
+          example: "Correct usage of 〜てもいい for polite permission."
+        correction:
+          type: string
+          description: Corrected sentence if incorrect; empty string otherwise
+          example: ""
+        natural_alternative:
+          type: string
+          example: "明日、少し遅く来てもいいですか？"
+        raw_response:
+          type: string
+          description: Raw LLM output (included when parsing had issues)
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: "not found"
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+security:
+  - cookieAuth: []
+
+paths:
+  # --- Grammar ---------------------------------------------------------------
+  /api/grammar:
+    get:
+      operationId: listGrammar
+      summary: List grammar points
+      tags: [grammar]
+      parameters:
+        - in: query
+          name: jlpt
+          schema:
+            type: string
+            enum: [N1, N2, N3, N4, N5]
+          description: Filter by JLPT level
+      responses:
+        "200":
+          description: Array of grammar points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GrammarPoint"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    post:
+      operationId: createGrammar
+      summary: Create a grammar point
+      tags: [grammar]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrammarPointInput"
+      responses:
+        "201":
+          description: Created grammar point (with auto-created SRS card)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrammarPoint"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/grammar/{id}:
+    get:
+      operationId: getGrammar
+      summary: Get a single grammar point
+      tags: [grammar]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Grammar point
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrammarPoint"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # --- Review ----------------------------------------------------------------
+  /api/review/queue:
+    get:
+      operationId: getReviewQueue
+      summary: Get today's due SRS cards
+      tags: [review]
+      responses:
+        "200":
+          description: Cards due for review today, with embedded grammar point data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewQueue"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/review/{id}/grade:
+    post:
+      operationId: submitGrade
+      summary: Submit a grade for an SRS card
+      description: Runs the SM-2 algorithm and schedules the next review.
+      tags: [review]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: Review card ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GradeRequest"
+      responses:
+        "200":
+          description: Updated SM-2 state and next due date
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GradeResult"
+        "400":
+          description: Invalid grade value
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Card not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # --- Challenge -------------------------------------------------------------
+  /api/challenge/grade:
+    post:
+      operationId: gradeChallenge
+      summary: LLM-grade a user-written sentence
+      description: |
+        Sends the sentence to Ollama for evaluation against the specified
+        grammar point. Response time depends on the model (~1–5 s).
+      tags: [challenge]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChallengeRequest"
+      responses:
+        "200":
+          description: LLM grading result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LLMGrade"
+        "400":
+          description: Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Grammar point not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: Ollama unavailable or grading failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # --- Auth ------------------------------------------------------------------
+  /auth/login:
+    get:
+      operationId: authLogin
+      summary: Initiate Google OIDC login
+      tags: [auth]
+      security: []
+      description: Redirects the browser to Google's OAuth2 consent screen.
+      responses:
+        "302":
+          description: Redirect to Google
+
+  /auth/callback:
+    get:
+      operationId: authCallback
+      summary: OAuth2 callback
+      tags: [auth]
+      security: []
+      description: Google redirects here after consent. Sets session cookie and redirects to `/`.
+      parameters:
+        - in: query
+          name: code
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: state
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to home on success
+        "401":
+          description: Authentication failed
+
+  /auth/logout:
+    get:
+      operationId: authLogout
+      summary: Log out and clear session cookie
+      tags: [auth]
+      responses:
+        "302":
+          description: Redirect to login page
+
+  # --- System ----------------------------------------------------------------
+  /health:
+    get:
+      operationId: healthCheck
+      summary: Health check
+      tags: [system]
+      security: []
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok

@@ -46,6 +46,10 @@ func NewRouter(database *db.DB, ollamaClient *llm.Client, authHandler *auth.Hand
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
+	// OpenAPI spec and Swagger UI — no auth required
+	r.Get("/openapi.yaml", serveOpenAPISpec())
+	r.Get("/docs", serveSwaggerUI())
+
 	return r
 }
 

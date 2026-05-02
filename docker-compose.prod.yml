@@ -1,0 +1,64 @@
+# docker-compose.prod.yml — production stack
+#
+# Builds optimised images: distroless Go binary + nginx serving static assets.
+# The frontend nginx container proxies /api, /auth, and /health to the backend.
+#
+#   docker compose -f docker-compose.prod.yml up --build -d
+#
+# First run: pull an Ollama model after the stack is up:
+#   docker compose -f docker-compose.prod.yml exec ollama ollama pull qwen2.5:3b
+
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "${PORT:-8080}:8080"
+    env_file: .env
+    environment:
+      DB_PATH: /data/shinkaku.db
+      OLLAMA_URL: http://ollama:11434
+    volumes:
+      - backend-data:/data
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      # Uses the 'production' stage — nginx serving pre-built static files
+      target: production
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    # Not exposed externally in production — only reachable by backend
+    expose:
+      - "11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    # Uncomment for NVIDIA GPU support:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list > /dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 6
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  backend-data:
+  ollama-data:

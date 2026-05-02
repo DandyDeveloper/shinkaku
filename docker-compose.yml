@@ -1,0 +1,68 @@
+# docker-compose.yml — development stack
+#
+# Runs the full stack in containers with the Vite dev server for hot reload.
+# Copy .env.example to .env and fill in your values before starting.
+#
+#   docker compose up
+#
+# First run: pull an Ollama model after the stack is up:
+#   docker compose exec ollama ollama pull qwen2.5:3b
+
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "${PORT:-8080}:8080"
+    env_file: .env
+    environment:
+      # Override DB path to use the mounted volume
+      DB_PATH: /data/shinkaku.db
+      # Reach Ollama by container name
+      OLLAMA_URL: http://ollama:11434
+    volumes:
+      - backend-data:/data
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      # Uses the 'dev' stage — runs the Vite dev server with hot reload
+      target: dev
+    ports:
+      - "5173:5173"
+    environment:
+      # Proxy /api, /auth, /health to the backend container
+      BACKEND_URL: http://backend:8080
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    # Uncomment for NVIDIA GPU support:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list > /dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 6
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  backend-data:
+  ollama-data:

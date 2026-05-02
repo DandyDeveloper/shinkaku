@@ -1,4 +1,4 @@
--- nihongo-sensei SQLite schema
+-- shinkaku SQLite schema
 
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;

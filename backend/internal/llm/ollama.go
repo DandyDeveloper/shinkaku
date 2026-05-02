@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/user/nihongo-sensei/backend/internal/models"
+	"github.com/user/shinkaku/backend/internal/models"
 )
 
 const gradingPromptTemplate = `You are a strict but helpful Japanese language teacher grading a student's sentence.

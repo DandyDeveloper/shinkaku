@@ -5,9 +5,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/user/nihongo-sensei/backend/internal/auth"
-	"github.com/user/nihongo-sensei/backend/internal/db"
-	"github.com/user/nihongo-sensei/backend/internal/llm"
+	"github.com/user/shinkaku/backend/internal/auth"
+	"github.com/user/shinkaku/backend/internal/db"
+	"github.com/user/shinkaku/backend/internal/llm"
 )
 
 // NewRouter wires all handlers onto a chi Mux and returns it.

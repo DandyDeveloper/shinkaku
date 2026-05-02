@@ -11,11 +11,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/user/nihongo-sensei/backend/config"
-	"github.com/user/nihongo-sensei/backend/internal/api"
-	"github.com/user/nihongo-sensei/backend/internal/auth"
-	"github.com/user/nihongo-sensei/backend/internal/db"
-	"github.com/user/nihongo-sensei/backend/internal/llm"
+	"github.com/user/shinkaku/backend/config"
+	"github.com/user/shinkaku/backend/internal/api"
+	"github.com/user/shinkaku/backend/internal/auth"
+	"github.com/user/shinkaku/backend/internal/db"
+	"github.com/user/shinkaku/backend/internal/llm"
 )
 
 func main() {
@@ -50,7 +50,7 @@ func main() {
 
 	// Start server in a goroutine so we can listen for shutdown signals.
 	go func() {
-		log.Printf("nihongo-sensei backend listening on http://localhost:%s", cfg.Port)
+		log.Printf("shinkaku backend listening on http://localhost:%s", cfg.Port)
 		log.Printf("ollama: %s  model: %s", cfg.OllamaURL, cfg.OllamaModel)
 		log.Printf("database: %s", cfg.DBPath)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

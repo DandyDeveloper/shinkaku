@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/user/nihongo-sensei/backend/internal/db"
-	"github.com/user/nihongo-sensei/backend/internal/llm"
-	"github.com/user/nihongo-sensei/backend/internal/models"
+	"github.com/user/shinkaku/backend/internal/db"
+	"github.com/user/shinkaku/backend/internal/llm"
+	"github.com/user/shinkaku/backend/internal/models"
 )
 
 // gradeChallenge receives a user sentence and grammar point ID, sends them to

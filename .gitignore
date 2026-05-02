@@ -1,5 +1,5 @@
 # Go
-backend/nihongo-sensei
+backend/shinkaku
 backend/*.db
 backend/nihongo.db
 *.db
@@ -19,3 +19,6 @@ frontend/.env.*
 Thumbs.db
 *.log
 .env
+
+# AI
+.claude/

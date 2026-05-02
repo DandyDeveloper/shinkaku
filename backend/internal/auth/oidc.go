@@ -14,7 +14,7 @@ import (
 	"github.com/gorilla/securecookie"
 	"golang.org/x/oauth2"
 
-	"github.com/user/nihongo-sensei/backend/config"
+	"github.com/user/shinkaku/backend/config"
 )
 
 const (

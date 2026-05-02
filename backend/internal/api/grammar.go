@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/user/nihongo-sensei/backend/internal/db"
-	"github.com/user/nihongo-sensei/backend/internal/models"
+	"github.com/user/shinkaku/backend/internal/db"
+	"github.com/user/shinkaku/backend/internal/models"
 )
 
 func listGrammar(database *db.DB) http.HandlerFunc {

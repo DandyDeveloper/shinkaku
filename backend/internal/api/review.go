@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/user/nihongo-sensei/backend/internal/db"
-	"github.com/user/nihongo-sensei/backend/internal/models"
-	"github.com/user/nihongo-sensei/backend/internal/srs"
+	"github.com/user/shinkaku/backend/internal/db"
+	"github.com/user/shinkaku/backend/internal/models"
+	"github.com/user/shinkaku/backend/internal/srs"
 )
 
 // getReviewQueue returns all cards due today (due_date <= now).

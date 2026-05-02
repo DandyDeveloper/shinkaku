@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/user/nihongo-sensei/backend/internal/db"
-	"github.com/user/nihongo-sensei/backend/internal/models"
+	"github.com/user/shinkaku/backend/internal/db"
+	"github.com/user/shinkaku/backend/internal/models"
 )
 
 // HanabiraGrammarItem maps the JSON structure from Hanabira.org grammar exports.

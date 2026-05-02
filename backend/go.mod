@@ -1,4 +1,4 @@
-module github.com/user/nihongo-sensei/backend
+module github.com/user/shinkaku/backend
 
 go 1.25.0
 

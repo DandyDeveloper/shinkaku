@@ -70,7 +70,7 @@ func generateConversationPrompt(database *db.DB, ollamaClient *llm.Client) http.
 			return
 		}
 
-		prompt, err := ollamaClient.GenerateConversationPrompt(r.Context(), *gp)
+		prompt, err := ollamaClient.GenerateConversationPrompt(r.Context(), *gp, req.IncludeFurigana)
 		if err != nil {
 			jsonError(w, "llm conversation prompt failed: "+err.Error(), http.StatusBadGateway)
 			return
@@ -99,7 +99,7 @@ func gradeConversationReply(database *db.DB, ollamaClient *llm.Client) http.Hand
 			return
 		}
 
-		grade, err := ollamaClient.GradeConversationReply(r.Context(), *gp, req.Scenario, req.AssistantMessage, req.UserReply)
+		grade, err := ollamaClient.GradeConversationReply(r.Context(), *gp, req.Scenario, req.AssistantMessage, req.UserReply, req.IncludeFurigana)
 		if err != nil {
 			jsonError(w, "llm conversation grading failed: "+err.Error(), http.StatusBadGateway)
 			return

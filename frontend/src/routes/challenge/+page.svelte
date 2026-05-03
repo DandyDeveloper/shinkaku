@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { listGrammar, gradeChallenge, getConversationPrompt, gradeConversationReply } from '$lib/api.js';
   import LLMFeedback from '$lib/components/LLMFeedback.svelte';
+  import { getSettings } from '$lib/settings.js';
 
   let grammarPoints = [];
   let selectedPoint = null;
@@ -17,12 +18,14 @@
   let conversationFeedback = null;
   let conversationLoading = false;
   let conversationError = '';
+  let includeConversationFurigana = false;
 
   let loadError = '';
 
   onMount(async () => {
     try {
       grammarPoints = await listGrammar();
+      includeConversationFurigana = getSettings().includeConversationFurigana;
       if (grammarPoints.length > 0) {
         const params = new URLSearchParams(window.location.search);
         const requestedId = Number(params.get('grammar'));
@@ -101,7 +104,7 @@
     conversationReply = '';
     conversationError = '';
     try {
-      conversationPrompt = await getConversationPrompt(selectedPoint.id);
+      conversationPrompt = await getConversationPrompt(selectedPoint.id, includeConversationFurigana);
     } catch (e) {
       conversationError = e.message;
     } finally {
@@ -119,7 +122,8 @@
         selectedPoint.id,
         conversationPrompt.scenario,
         conversationPrompt.assistant_message,
-        conversationReply.trim()
+        conversationReply.trim(),
+        includeConversationFurigana
       );
     } catch (e) {
       conversationError = e.message;

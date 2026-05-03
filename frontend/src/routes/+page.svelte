@@ -92,6 +92,11 @@
         <strong>Vocab Review</strong>
         <span>{vocabQueue.length} card{vocabQueue.length !== 1 ? 's' : ''} due</span>
       </a>
+      <a href="/settings" class="nav-card">
+        <span class="nav-icon">⚙️</span>
+        <strong>Settings</strong>
+        <span>Customize conversation options</span>
+      </a>
     </div>
   {/if}
 </main>

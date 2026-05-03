@@ -76,6 +76,7 @@ type ChallengeRequest struct {
 // ConversationPromptRequest asks the backend to generate a conversation starter.
 type ConversationPromptRequest struct {
 	GrammarPointID int64 `json:"grammar_point_id"`
+	IncludeFurigana bool `json:"include_furigana"`
 }
 
 // ConversationReplyRequest asks the backend to grade a reply in a roleplay.
@@ -84,6 +85,7 @@ type ConversationReplyRequest struct {
 	Scenario         string `json:"scenario"`
 	AssistantMessage string `json:"assistant_message"`
 	UserReply        string `json:"user_reply"`
+	IncludeFurigana  bool   `json:"include_furigana"`
 }
 
 // GradeRequest is the payload for submitting an SRS card grade.

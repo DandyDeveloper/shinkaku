@@ -49,6 +49,7 @@ Respond ONLY with valid JSON in this exact format:
 }
 
 Keep the assistant message short, natural, and clearly answerable in one or two sentences.
+%s
 Do not include any text outside the JSON object.`
 
 const conversationGradingPromptTemplate = `You are a strict but helpful Japanese teacher grading a learner's reply in a roleplay.
@@ -70,6 +71,7 @@ Respond ONLY with valid JSON in this exact format:
   "assistant_reply": "A short natural Japanese follow-up from the partner"
 }
 
+%s
 Do not include any text outside the JSON object.`
 
 // Client is an Ollama API client.
@@ -136,13 +138,14 @@ func (c *Client) GradeSentence(ctx context.Context, gp models.GrammarPoint, user
 }
 
 // GenerateConversationPrompt asks Ollama for a short scenario and opening message.
-func (c *Client) GenerateConversationPrompt(ctx context.Context, gp models.GrammarPoint) (*models.ConversationPrompt, error) {
+func (c *Client) GenerateConversationPrompt(ctx context.Context, gp models.GrammarPoint, includeFurigana bool) (*models.ConversationPrompt, error) {
 	prompt := fmt.Sprintf(conversationPromptTemplate,
 		gp.Pattern,
 		gp.Meaning,
 		gp.ExampleJP,
 		gp.ExampleEN,
 		gp.Notes,
+		furiganaInstruction(includeFurigana),
 	)
 
 	raw, err := c.generate(ctx, prompt)
@@ -161,7 +164,7 @@ func (c *Client) GenerateConversationPrompt(ctx context.Context, gp models.Gramm
 }
 
 // GradeConversationReply asks Ollama to evaluate a reply in a grammar-focused conversation.
-func (c *Client) GradeConversationReply(ctx context.Context, gp models.GrammarPoint, scenario, assistantMessage, userReply string) (*models.ConversationGrade, error) {
+func (c *Client) GradeConversationReply(ctx context.Context, gp models.GrammarPoint, scenario, assistantMessage, userReply string, includeFurigana bool) (*models.ConversationGrade, error) {
 	prompt := fmt.Sprintf(conversationGradingPromptTemplate,
 		gp.Pattern,
 		gp.Meaning,
@@ -170,6 +173,7 @@ func (c *Client) GradeConversationReply(ctx context.Context, gp models.GrammarPo
 		scenario,
 		assistantMessage,
 		userReply,
+		furiganaInstruction(includeFurigana),
 	)
 
 	raw, err := c.generate(ctx, prompt)
@@ -264,4 +268,11 @@ func extractJSON(s string) string {
 		return s[start : end+1]
 	}
 	return s
+}
+
+func furiganaInstruction(includeFurigana bool) string {
+	if includeFurigana {
+		return "For every Japanese output field, include furigana in plain text using this format: 漢字(かんじ). Do not use HTML ruby tags."
+	}
+	return "Do not add furigana annotations; output plain natural Japanese."
 }

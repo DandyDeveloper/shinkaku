@@ -86,19 +86,21 @@ export function gradeChallenge(grammarPointId, userSentence) {
 }
 
 /** @returns {Promise<import('./types').ConversationPrompt>} */
-export function getConversationPrompt(grammarPointId) {
+export function getConversationPrompt(grammarPointId, includeFurigana = false) {
   return request('POST', '/challenge/conversation/prompt', {
-    grammar_point_id: grammarPointId
+    grammar_point_id: grammarPointId,
+    include_furigana: includeFurigana
   });
 }
 
 /** @returns {Promise<import('./types').ConversationGrade>} */
-export function gradeConversationReply(grammarPointId, scenario, assistantMessage, userReply) {
+export function gradeConversationReply(grammarPointId, scenario, assistantMessage, userReply, includeFurigana = false) {
   return request('POST', '/challenge/conversation/grade', {
     grammar_point_id: grammarPointId,
     scenario: scenario,
     assistant_message: assistantMessage,
-    user_reply: userReply
+    user_reply: userReply,
+    include_furigana: includeFurigana
   });
 }
 

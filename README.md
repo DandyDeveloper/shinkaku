@@ -51,10 +51,8 @@ On first startup, the backend automatically seeds the SQLite database with a bui
    ```bash
    docker compose up --build
    ```
-3. Pull the Ollama model you want to use:
-   ```bash
-   docker compose exec ollama ollama pull qwen2.5:3b
-   ```
+3. The one-shot `ollama-init` service automatically pulls `OLLAMA_MODEL` from `.env` after Ollama is healthy.
+   On first boot this can take a few minutes while the model downloads.
 
 If the backend is being OOM-killed, raise `BACKEND_MEMORY_LIMIT` and keep `BACKEND_GO_MEMORY_LIMIT` slightly lower in `.env`. For example:
 

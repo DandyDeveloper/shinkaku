@@ -139,6 +139,7 @@
             <th>Meaning</th>
             <th>JLPT</th>
             <th>Example</th>
+            <th>Practice</th>
           </tr>
         </thead>
         <tbody>
@@ -154,6 +155,9 @@
                 {:else}
                   <span class="muted">—</span>
                 {/if}
+              </td>
+              <td class="actions-cell">
+                <a class="table-link" href={`/challenge?grammar=${gp.id}&mode=conversation`}>Conversation</a>
               </td>
             </tr>
           {/each}
@@ -228,6 +232,19 @@
   tr:hover td { background: #f7fafc; }
   .pattern-cell { font-weight: 700; color: #2d3748; white-space: nowrap; }
   .example-cell small { color: #a0aec0; }
+  .actions-cell { white-space: nowrap; }
+  .table-link {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.6rem;
+    border-radius: 999px;
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 700;
+    background: #edf2ff;
+    color: #4055c8;
+  }
+  .table-link:hover { background: #e0e7ff; }
   .badge { background: #ebf8ff; color: #2b6cb0; font-size: 0.75rem; font-weight: 700; padding: 0.15rem 0.4rem; border-radius: 4px; }
   .muted { color: #cbd5e0; }
   .count { font-size: 0.8rem; color: #a0aec0; text-align: right; margin-top: 0.5rem; }

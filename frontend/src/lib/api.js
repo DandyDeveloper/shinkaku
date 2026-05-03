@@ -85,6 +85,23 @@ export function gradeChallenge(grammarPointId, userSentence) {
   });
 }
 
+/** @returns {Promise<import('./types').ConversationPrompt>} */
+export function getConversationPrompt(grammarPointId) {
+  return request('POST', '/challenge/conversation/prompt', {
+    grammar_point_id: grammarPointId
+  });
+}
+
+/** @returns {Promise<import('./types').ConversationGrade>} */
+export function gradeConversationReply(grammarPointId, scenario, assistantMessage, userReply) {
+  return request('POST', '/challenge/conversation/grade', {
+    grammar_point_id: grammarPointId,
+    scenario: scenario,
+    assistant_message: assistantMessage,
+    user_reply: userReply
+  });
+}
+
 // --- Vocabulary ---
 
 /** @returns {Promise<import('./types').VocabWord[]>} */

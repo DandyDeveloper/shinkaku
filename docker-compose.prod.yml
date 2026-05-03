@@ -5,8 +5,7 @@
 #
 #   docker compose -f docker-compose.prod.yml up --build -d
 #
-# First run: pull an Ollama model after the stack is up:
-#   docker compose -f docker-compose.prod.yml exec ollama ollama pull qwen2.5:3b
+# On first run, the ollama-init service automatically pulls OLLAMA_MODEL.
 
 services:
   backend:
@@ -17,15 +16,15 @@ services:
     env_file: .env
     environment:
       DB_PATH: /data/shinkaku.db
-      OLLAMA_URL: http://ollama:5555
+      OLLAMA_URL: http://ollama:11434
       # Keep Go's heap target below the container limit.
       GOMEMLIMIT: ${BACKEND_GO_MEMORY_LIMIT:-768MiB}
     volumes:
       - backend-data:/data
     mem_limit: ${BACKEND_MEMORY_LIMIT:-1g}
     depends_on:
-      ollama:
-        condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   frontend:
@@ -43,7 +42,7 @@ services:
     image: ollama/ollama:latest
     # Not exposed externally in production — only reachable by backend
     expose:
-      - "5555"
+      - "11434"
     volumes:
       - ollama-data:/root/.ollama
     # For AMD GPU passthrough, add the AMD override file documented in README.md.
@@ -62,6 +61,18 @@ services:
       retries: 6
       start_period: 30s
     restart: unless-stopped
+
+  ollama-init:
+    image: ollama/ollama:latest
+    env_file: .env
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
+    depends_on:
+      ollama:
+        condition: service_healthy
+    command: ["sh", "-c", "ollama pull \"$OLLAMA_MODEL\""]
+    restart: "no"
 
 volumes:
   backend-data:

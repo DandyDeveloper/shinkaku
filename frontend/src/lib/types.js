@@ -36,6 +36,23 @@
  * @property {string} explanation
  * @property {string} [correction]
  * @property {string} [natural_alternative]
+ * @property {string} [assistant_reply]
+ * @property {string} [raw_response]
+ */
+
+/**
+ * @typedef {Object} ConversationPrompt
+ * @property {string} scenario
+ * @property {string} assistant_message
+ */
+
+/**
+ * @typedef {Object} ConversationGrade
+ * @property {boolean} correct
+ * @property {string} explanation
+ * @property {string} [correction]
+ * @property {string} [natural_alternative]
+ * @property {string} [assistant_reply]
  * @property {string} [raw_response]
  */
 

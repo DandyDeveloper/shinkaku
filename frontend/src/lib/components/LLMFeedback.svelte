@@ -1,5 +1,5 @@
 <script>
-  /** @type {{ correct: boolean, explanation: string, correction?: string, natural_alternative?: string } | null} */
+  /** @type {{ correct: boolean, explanation: string, correction?: string, natural_alternative?: string, assistant_reply?: string } | null} */
   export let feedback = null;
   export let loading = false;
   export let error = '';
@@ -39,6 +39,13 @@
       <div class="section">
         <h4>Natural alternative</h4>
         <p class="jp-text">{feedback.natural_alternative}</p>
+      </div>
+    {/if}
+
+    {#if feedback.assistant_reply}
+      <div class="section">
+        <h4>Assistant follow-up</h4>
+        <p class="jp-text">{feedback.assistant_reply}</p>
       </div>
     {/if}
   </div>

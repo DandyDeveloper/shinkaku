@@ -34,6 +34,44 @@ Evaluate whether the student correctly used the grammar pattern above. Respond O
 
 Do not include any text outside the JSON object.`
 
+const conversationPromptTemplate = `You are a Japanese conversation coach preparing a short roleplay for a learner.
+
+Grammar point: %s
+Meaning: %s
+Example: %s (%s)
+Notes: %s
+
+Create a very short realistic conversation setup where the learner should naturally reply using the target grammar point.
+Respond ONLY with valid JSON in this exact format:
+{
+  "scenario": "A one-sentence English description of the situation",
+  "assistant_message": "A short Japanese message from the conversation partner"
+}
+
+Keep the assistant message short, natural, and clearly answerable in one or two sentences.
+Do not include any text outside the JSON object.`
+
+const conversationGradingPromptTemplate = `You are a strict but helpful Japanese teacher grading a learner's reply in a roleplay.
+
+Target grammar point: %s
+Meaning: %s
+Reference example: %s (%s)
+Scenario: %s
+Partner's message: %s
+Learner's reply: %s
+
+Evaluate whether the learner gave a natural reply and correctly used the target grammar point.
+Respond ONLY with valid JSON in this exact format:
+{
+  "correct": true or false,
+  "explanation": "Brief explanation in English",
+  "correction": "Corrected Japanese reply if needed, otherwise empty string",
+  "natural_alternative": "A natural alternative Japanese reply using the same grammar point",
+  "assistant_reply": "A short natural Japanese follow-up from the partner"
+}
+
+Do not include any text outside the JSON object.`
+
 // Client is an Ollama API client.
 type Client struct {
 	baseURL    string
@@ -80,6 +118,78 @@ func (c *Client) GradeSentence(ctx context.Context, gp models.GrammarPoint, user
 		userSentence,
 	)
 
+	raw, err := c.generate(ctx, prompt)
+	if err != nil {
+		return nil, err
+	}
+
+	var grade models.LLMGrade
+	if err := json.Unmarshal([]byte(raw), &grade); err != nil {
+		return &models.LLMGrade{
+			Correct:     false,
+			Explanation: "Could not parse LLM response.",
+			RawResponse: raw,
+		}, nil
+	}
+	grade.RawResponse = raw
+	return &grade, nil
+}
+
+// GenerateConversationPrompt asks Ollama for a short scenario and opening message.
+func (c *Client) GenerateConversationPrompt(ctx context.Context, gp models.GrammarPoint) (*models.ConversationPrompt, error) {
+	prompt := fmt.Sprintf(conversationPromptTemplate,
+		gp.Pattern,
+		gp.Meaning,
+		gp.ExampleJP,
+		gp.ExampleEN,
+		gp.Notes,
+	)
+
+	raw, err := c.generate(ctx, prompt)
+	if err != nil {
+		return nil, err
+	}
+
+	var conversationPrompt models.ConversationPrompt
+	if err := json.Unmarshal([]byte(raw), &conversationPrompt); err != nil {
+		return &models.ConversationPrompt{
+			Scenario:         "Could not parse the generated scenario. Try again.",
+			AssistantMessage: raw,
+		}, nil
+	}
+	return &conversationPrompt, nil
+}
+
+// GradeConversationReply asks Ollama to evaluate a reply in a grammar-focused conversation.
+func (c *Client) GradeConversationReply(ctx context.Context, gp models.GrammarPoint, scenario, assistantMessage, userReply string) (*models.ConversationGrade, error) {
+	prompt := fmt.Sprintf(conversationGradingPromptTemplate,
+		gp.Pattern,
+		gp.Meaning,
+		gp.ExampleJP,
+		gp.ExampleEN,
+		scenario,
+		assistantMessage,
+		userReply,
+	)
+
+	raw, err := c.generate(ctx, prompt)
+	if err != nil {
+		return nil, err
+	}
+
+	var grade models.ConversationGrade
+	if err := json.Unmarshal([]byte(raw), &grade); err != nil {
+		return &models.ConversationGrade{
+			Correct:     false,
+			Explanation: "Could not parse LLM response.",
+			RawResponse: raw,
+		}, nil
+	}
+	grade.RawResponse = raw
+	return &grade, nil
+}
+
+func (c *Client) generate(ctx context.Context, prompt string) (string, error) {
 	reqBody := generateRequest{
 		Model:  c.model,
 		Prompt: prompt,
@@ -88,28 +198,27 @@ func (c *Client) GradeSentence(ctx context.Context, gp models.GrammarPoint, user
 
 	bodyBytes, err := json.Marshal(reqBody)
 	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
+		return "", fmt.Errorf("marshal request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 		c.baseURL+"/api/generate", bytes.NewReader(bodyBytes))
 	if err != nil {
-		return nil, fmt.Errorf("build request: %w", err)
+		return "", fmt.Errorf("build request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("ollama request: %w", err)
+		return "", fmt.Errorf("ollama request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("ollama returned %d: %s", resp.StatusCode, string(body))
+		return "", fmt.Errorf("ollama returned %d: %s", resp.StatusCode, string(body))
 	}
 
-	// Ollama streams NDJSON — each line is a generateResponse chunk.
 	var fullResponse strings.Builder
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
@@ -122,7 +231,7 @@ func (c *Client) GradeSentence(ctx context.Context, gp models.GrammarPoint, user
 			continue
 		}
 		if chunk.Error != "" {
-			return nil, fmt.Errorf("ollama error: %s", chunk.Error)
+			return "", fmt.Errorf("ollama error: %s", chunk.Error)
 		}
 		fullResponse.WriteString(chunk.Response)
 		if chunk.Done {
@@ -130,25 +239,11 @@ func (c *Client) GradeSentence(ctx context.Context, gp models.GrammarPoint, user
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("reading stream: %w", err)
+		return "", fmt.Errorf("reading stream: %w", err)
 	}
 
 	raw := strings.TrimSpace(fullResponse.String())
-
-	// Extract JSON — the model may wrap it in markdown fences.
-	raw = extractJSON(raw)
-
-	var grade models.LLMGrade
-	if err := json.Unmarshal([]byte(raw), &grade); err != nil {
-		// Return a degraded response rather than a hard error so the UI still works.
-		return &models.LLMGrade{
-			Correct:     false,
-			Explanation: "Could not parse LLM response.",
-			RawResponse: raw,
-		}, nil
-	}
-	grade.RawResponse = raw
-	return &grade, nil
+	return extractJSON(raw), nil
 }
 
 // extractJSON attempts to strip markdown code fences from LLM output.

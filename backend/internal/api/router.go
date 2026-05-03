@@ -38,6 +38,8 @@ func NewRouter(database *db.DB, ollamaClient *llm.Client, authHandler *auth.Hand
 
 		// LLM challenge
 		r.Post("/challenge/grade", gradeChallenge(database, ollamaClient))
+		r.Post("/challenge/conversation/prompt", generateConversationPrompt(database, ollamaClient))
+		r.Post("/challenge/conversation/grade", gradeConversationReply(database, ollamaClient))
 
 		// Vocabulary
 		r.Get("/vocab", listVocab(database))

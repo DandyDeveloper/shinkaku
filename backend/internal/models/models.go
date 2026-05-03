@@ -44,17 +44,46 @@ type Session struct {
 
 // LLMGrade is the structured response from Ollama grading.
 type LLMGrade struct {
-	Correct         bool   `json:"correct"`
-	Explanation     string `json:"explanation"`
-	Correction      string `json:"correction,omitempty"`
-	NaturalAlt      string `json:"natural_alternative,omitempty"`
-	RawResponse     string `json:"raw_response,omitempty"`
+	Correct     bool   `json:"correct"`
+	Explanation string `json:"explanation"`
+	Correction  string `json:"correction,omitempty"`
+	NaturalAlt  string `json:"natural_alternative,omitempty"`
+	RawResponse string `json:"raw_response,omitempty"`
+}
+
+// ConversationPrompt is a generated conversation setup for a grammar point.
+type ConversationPrompt struct {
+	Scenario         string `json:"scenario"`
+	AssistantMessage string `json:"assistant_message"`
+}
+
+// ConversationGrade is the structured evaluation of a learner's reply.
+type ConversationGrade struct {
+	Correct            bool   `json:"correct"`
+	Explanation        string `json:"explanation"`
+	Correction         string `json:"correction,omitempty"`
+	NaturalAlternative string `json:"natural_alternative,omitempty"`
+	AssistantReply     string `json:"assistant_reply,omitempty"`
+	RawResponse        string `json:"raw_response,omitempty"`
 }
 
 // ChallengeRequest is the payload sent by the frontend for LLM grading.
 type ChallengeRequest struct {
 	GrammarPointID int64  `json:"grammar_point_id"`
 	UserSentence   string `json:"user_sentence"`
+}
+
+// ConversationPromptRequest asks the backend to generate a conversation starter.
+type ConversationPromptRequest struct {
+	GrammarPointID int64 `json:"grammar_point_id"`
+}
+
+// ConversationReplyRequest asks the backend to grade a reply in a roleplay.
+type ConversationReplyRequest struct {
+	GrammarPointID   int64  `json:"grammar_point_id"`
+	Scenario         string `json:"scenario"`
+	AssistantMessage string `json:"assistant_message"`
+	UserReply        string `json:"user_reply"`
 }
 
 // GradeRequest is the payload for submitting an SRS card grade.

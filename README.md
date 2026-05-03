@@ -2,7 +2,7 @@
 
 A local Japanese grammar learning tool with spaced repetition (SM-2) and LLM-powered sentence grading via Ollama.
 
-On first startup, the backend automatically seeds the SQLite database with a built-in starter set of grammar points and review cards, so a fresh install is immediately usable.
+On first startup, a one-time onboarding screen asks for your starting JLPT level and pre-populates starter grammar for that level and easier levels.
 
 ## Stack
 

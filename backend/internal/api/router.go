@@ -27,6 +27,10 @@ func NewRouter(database *db.DB, ollamaClient *llm.Client, authHandler *auth.Hand
 	r.Route("/api", func(r chi.Router) {
 		r.Use(authHandler.RequireAuth)
 
+		// Onboarding
+		r.Get("/onboarding/status", getOnboardingStatus(database))
+		r.Post("/onboarding/complete", completeOnboarding(database))
+
 		// Grammar points
 		r.Get("/grammar", listGrammar(database))
 		r.Post("/grammar", createGrammar(database))

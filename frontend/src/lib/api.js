@@ -38,6 +38,18 @@ async function request(method, path, body) {
 
 // --- Grammar Points ---
 
+/** @returns {Promise<{needs_onboarding: boolean, grammar_count: number}>} */
+export function getOnboardingStatus() {
+  return request('GET', '/onboarding/status');
+}
+
+/** @returns {Promise<{inserted: number}>} */
+export function completeOnboarding(startingJlpt) {
+  return request('POST', '/onboarding/complete', {
+    starting_jlpt: startingJlpt
+  });
+}
+
 /** @returns {Promise<import('./types').GrammarPoint[]>} */
 export function listGrammar(jlptLevel = '') {
   const qs = jlptLevel ? `?jlpt=${encodeURIComponent(jlptLevel)}` : '';

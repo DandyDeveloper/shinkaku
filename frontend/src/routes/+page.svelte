@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { getReviewQueue, getVocabReviewQueue, listGrammar, listVocab } from '$lib/api.js';
+  import { getOnboardingStatus, getReviewQueue, getVocabReviewQueue, listGrammar, listVocab } from '$lib/api.js';
 
   let queue = [];
   let vocabQueue = [];
@@ -11,6 +11,12 @@
 
   onMount(async () => {
     try {
+      const onboarding = await getOnboardingStatus();
+      if (onboarding.needs_onboarding) {
+        window.location.href = '/onboarding';
+        return;
+      }
+
       const [queueRes, vocabQueueRes, grammarRes, vocabRes] = await Promise.all([
         getReviewQueue(),
         getVocabReviewQueue(),

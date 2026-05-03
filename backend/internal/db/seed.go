@@ -1,6 +1,9 @@
 package db
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type starterGrammarPoint struct {
 	jlptLevel string
@@ -45,51 +48,85 @@ var starterGrammarPoints = []starterGrammarPoint{
 	{jlptLevel: "N1", pattern: "〜かたわら", meaning: "while; besides", exampleJP: "彼は会社で働くかたわら、小説も書いています。", exampleEN: "While working at a company, he also writes novels.", notes: "Formal pattern for parallel long-term activity."},
 }
 
-func (db *DB) seedStarterContent() error {
+// StarterGrammarCount returns the current number of grammar points.
+func (db *DB) StarterGrammarCount() (int, error) {
 	var grammarCount int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM grammar_points`).Scan(&grammarCount); err != nil {
-		return fmt.Errorf("count grammar points: %w", err)
+		return 0, fmt.Errorf("count grammar points: %w", err)
+	}
+	return grammarCount, nil
+}
+
+// SeedStarterContentForJLPT seeds starter grammar points for only the selected
+// JLPT level (e.g. N3 seeds only N3). It only works on an empty grammar table
+// so first-run onboarding remains a one-time setup.
+func (db *DB) SeedStarterContentForJLPT(startingJLPT string) (int, error) {
+	selectedLevel, ok := normalizeJLPTLevel(startingJLPT)
+	if !ok {
+		return 0, fmt.Errorf("invalid starting JLPT level %q", startingJLPT)
+	}
+
+	grammarCount, err := db.StarterGrammarCount()
+	if err != nil {
+		return 0, err
 	}
 	if grammarCount > 0 {
-		return nil
+		return 0, fmt.Errorf("grammar table is not empty")
 	}
 
 	tx, err := db.Begin()
 	if err != nil {
-		return fmt.Errorf("begin seed tx: %w", err)
+		return 0, fmt.Errorf("begin seed tx: %w", err)
 	}
 	defer tx.Rollback()
 
 	insertGrammar, err := tx.Prepare(`INSERT INTO grammar_points (jlpt_level, pattern, meaning, example_jp, example_en, notes, source)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
-		return fmt.Errorf("prepare grammar insert: %w", err)
+		return 0, fmt.Errorf("prepare grammar insert: %w", err)
 	}
 	defer insertGrammar.Close()
 
 	insertReviewCard, err := tx.Prepare(`INSERT INTO review_cards (grammar_point_id, interval, repetitions, e_factor, due_date)
 		VALUES (?, 1, 0, 2.5, datetime('now'))`)
 	if err != nil {
-		return fmt.Errorf("prepare review card insert: %w", err)
+		return 0, fmt.Errorf("prepare review card insert: %w", err)
 	}
 	defer insertReviewCard.Close()
 
+	inserted := 0
 	for _, gp := range starterGrammarPoints {
+		if gp.jlptLevel != selectedLevel {
+			continue
+		}
+
 		res, err := insertGrammar.Exec(gp.jlptLevel, gp.pattern, gp.meaning, gp.exampleJP, gp.exampleEN, gp.notes, "starter")
 		if err != nil {
-			return fmt.Errorf("insert starter grammar %q: %w", gp.pattern, err)
+			return 0, fmt.Errorf("insert starter grammar %q: %w", gp.pattern, err)
 		}
 		grammarPointID, err := res.LastInsertId()
 		if err != nil {
-			return fmt.Errorf("starter grammar last insert id %q: %w", gp.pattern, err)
+			return 0, fmt.Errorf("starter grammar last insert id %q: %w", gp.pattern, err)
 		}
 		if _, err := insertReviewCard.Exec(grammarPointID); err != nil {
-			return fmt.Errorf("insert review card for %q: %w", gp.pattern, err)
+			return 0, fmt.Errorf("insert review card for %q: %w", gp.pattern, err)
 		}
+		inserted++
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit starter seed: %w", err)
+		return 0, fmt.Errorf("commit starter seed: %w", err)
 	}
-	return nil
+
+	return inserted, nil
+}
+
+func normalizeJLPTLevel(startingJLPT string) (string, bool) {
+	normalized := strings.ToUpper(strings.TrimSpace(startingJLPT))
+	for _, level := range []string{"N5", "N4", "N3", "N2", "N1"} {
+		if level == normalized {
+			return normalized, true
+		}
+	}
+	return "", false
 }

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -52,6 +53,22 @@ Keep the assistant message short, natural, and clearly answerable in one or two 
 %s
 Do not include any text outside the JSON object.`
 
+const conversationPromptRepairTemplate = `Your previous response did not follow the required furigana format.
+
+Rewrite ONLY valid JSON with the same schema:
+{
+	"scenario": "A one-sentence English description of the situation",
+	"assistant_message": "A short Japanese message from the conversation partner"
+}
+
+Furigana requirement:
+- For Japanese text with kanji, annotate as 漢字(かんじ)
+- Do not use HTML ruby tags
+- If a sentence has no kanji, plain kana is acceptable
+
+Previous response:
+%s`
+
 const conversationGradingPromptTemplate = `You are a strict but helpful Japanese teacher grading a learner's reply in a roleplay.
 
 Target grammar point: %s
@@ -73,6 +90,28 @@ Respond ONLY with valid JSON in this exact format:
 
 %s
 Do not include any text outside the JSON object.`
+
+const conversationGradingRepairTemplate = `Your previous response did not follow the required furigana format.
+
+Rewrite ONLY valid JSON with the exact same schema:
+{
+	"correct": true or false,
+	"explanation": "Brief explanation in English",
+	"correction": "Corrected Japanese reply if needed, otherwise empty string",
+	"natural_alternative": "A natural alternative Japanese reply using the same grammar point",
+	"assistant_reply": "A short natural Japanese follow-up from the partner"
+}
+
+Furigana requirement for Japanese fields (correction, natural_alternative, assistant_reply):
+- For Japanese text with kanji, annotate as 漢字(かんじ)
+- Do not use HTML ruby tags
+- If a field has no kanji, plain kana is acceptable
+
+Previous response:
+%s`
+
+var furiganaTokenPattern = regexp.MustCompile(`[一-龯々〆ヵヶ]+\([ぁ-ゖー]+\)`)
+var kanjiPattern = regexp.MustCompile(`[一-龯々〆ヵヶ]`)
 
 // Client is an Ollama API client.
 type Client struct {
@@ -160,6 +199,16 @@ func (c *Client) GenerateConversationPrompt(ctx context.Context, gp models.Gramm
 			AssistantMessage: raw,
 		}, nil
 	}
+
+	if includeFurigana && missingConversationPromptFurigana(conversationPrompt) {
+		retryRaw, retryErr := c.generate(ctx, fmt.Sprintf(conversationPromptRepairTemplate, raw))
+		if retryErr == nil {
+			var retried models.ConversationPrompt
+			if err := json.Unmarshal([]byte(retryRaw), &retried); err == nil {
+				conversationPrompt = retried
+			}
+		}
+	}
 	return &conversationPrompt, nil
 }
 
@@ -188,6 +237,17 @@ func (c *Client) GradeConversationReply(ctx context.Context, gp models.GrammarPo
 			Explanation: "Could not parse LLM response.",
 			RawResponse: raw,
 		}, nil
+	}
+
+	if includeFurigana && missingConversationGradeFurigana(grade) {
+		retryRaw, retryErr := c.generate(ctx, fmt.Sprintf(conversationGradingRepairTemplate, raw))
+		if retryErr == nil {
+			var retried models.ConversationGrade
+			if err := json.Unmarshal([]byte(retryRaw), &retried); err == nil {
+				grade = retried
+				raw = retryRaw
+			}
+		}
 	}
 	grade.RawResponse = raw
 	return &grade, nil
@@ -272,7 +332,35 @@ func extractJSON(s string) string {
 
 func furiganaInstruction(includeFurigana bool) string {
 	if includeFurigana {
-		return "For every Japanese output field, include furigana in plain text using this format: 漢字(かんじ). Do not use HTML ruby tags."
+		return "Furigana is REQUIRED for Japanese text with kanji. Use plain text format 漢字(かんじ), for example: 今日(きょう)は学校(がっこう)へ行(い)きます. Do not use HTML ruby tags."
 	}
 	return "Do not add furigana annotations; output plain natural Japanese."
+}
+
+func needsFurigana(text string) bool {
+	if strings.TrimSpace(text) == "" {
+		return false
+	}
+	return kanjiPattern.MatchString(text)
+}
+
+func hasFurigana(text string) bool {
+	return furiganaTokenPattern.MatchString(text)
+}
+
+func missingConversationPromptFurigana(prompt models.ConversationPrompt) bool {
+	if needsFurigana(prompt.AssistantMessage) && !hasFurigana(prompt.AssistantMessage) {
+		return true
+	}
+	return false
+}
+
+func missingConversationGradeFurigana(grade models.ConversationGrade) bool {
+	fields := []string{grade.Correction, grade.NaturalAlternative, grade.AssistantReply}
+	for _, field := range fields {
+		if needsFurigana(field) && !hasFurigana(field) {
+			return true
+		}
+	}
+	return false
 }

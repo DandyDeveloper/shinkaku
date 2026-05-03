@@ -192,24 +192,24 @@ func (c *Client) GenerateConversationPrompt(ctx context.Context, gp models.Gramm
 		return nil, err
 	}
 
-	var conversationPrompt models.ConversationPrompt
-	if err := json.Unmarshal([]byte(raw), &conversationPrompt); err != nil {
+	conversationPrompt, parsed := parseConversationPrompt(raw)
+	if !parsed {
 		return &models.ConversationPrompt{
 			Scenario:         "Could not parse the generated scenario. Try again.",
 			AssistantMessage: raw,
 		}, nil
 	}
 
-	if includeFurigana && missingConversationPromptFurigana(conversationPrompt) {
+	if includeFurigana && missingConversationPromptFurigana(*conversationPrompt) {
 		retryRaw, retryErr := c.generate(ctx, fmt.Sprintf(conversationPromptRepairTemplate, raw))
 		if retryErr == nil {
-			var retried models.ConversationPrompt
-			if err := json.Unmarshal([]byte(retryRaw), &retried); err == nil {
+			retried, ok := parseConversationPrompt(retryRaw)
+			if ok {
 				conversationPrompt = retried
 			}
 		}
 	}
-	return &conversationPrompt, nil
+	return conversationPrompt, nil
 }
 
 // GradeConversationReply asks Ollama to evaluate a reply in a grammar-focused conversation.
@@ -353,6 +353,57 @@ func missingConversationPromptFurigana(prompt models.ConversationPrompt) bool {
 		return true
 	}
 	return false
+}
+
+func parseConversationPrompt(raw string) (*models.ConversationPrompt, bool) {
+	var parsed models.ConversationPrompt
+	if err := json.Unmarshal([]byte(raw), &parsed); err == nil {
+		parsed.Scenario = strings.TrimSpace(parsed.Scenario)
+		parsed.AssistantMessage = strings.TrimSpace(parsed.AssistantMessage)
+		if parsed.Scenario != "" && parsed.AssistantMessage != "" {
+			return &parsed, true
+		}
+	}
+
+	var loose map[string]any
+	if err := json.Unmarshal([]byte(raw), &loose); err != nil {
+		return nil, false
+	}
+
+	scenario := firstString(loose,
+		"scenario",
+		"situation",
+		"context",
+	)
+	assistantMessage := firstString(loose,
+		"assistant_message",
+		"assistantMessage",
+		"message",
+		"partner_message",
+		"conversation_starter",
+	)
+
+	scenario = strings.TrimSpace(scenario)
+	assistantMessage = strings.TrimSpace(assistantMessage)
+	if scenario == "" || assistantMessage == "" {
+		return nil, false
+	}
+
+	return &models.ConversationPrompt{
+		Scenario:         scenario,
+		AssistantMessage: assistantMessage,
+	}, true
+}
+
+func firstString(m map[string]any, keys ...string) string {
+	for _, key := range keys {
+		if v, ok := m[key]; ok {
+			if s, ok := v.(string); ok {
+				return s
+			}
+		}
+	}
+	return ""
 }
 
 func missingConversationGradeFurigana(grade models.ConversationGrade) bool {

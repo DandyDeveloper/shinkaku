@@ -90,6 +90,16 @@ export function getConversationPrompt(grammarPointId, includeFurigana = false) {
   return request('POST', '/challenge/conversation/prompt', {
     grammar_point_id: grammarPointId,
     include_furigana: includeFurigana
+  }).then((res) => {
+    const scenario = res?.scenario ?? res?.situation ?? '';
+    const assistantMessage = res?.assistant_message ?? res?.assistantMessage ?? res?.message ?? '';
+    if (!scenario || !assistantMessage) {
+      throw new Error('Conversation prompt payload was invalid. Please try again.');
+    }
+    return {
+      scenario,
+      assistant_message: assistantMessage
+    };
   });
 }
 

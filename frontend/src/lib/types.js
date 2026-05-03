@@ -39,4 +39,34 @@
  * @property {string} [raw_response]
  */
 
+/**
+ * @typedef {Object} VocabWord
+ * @property {number} id
+ * @property {string} jlpt_level - e.g. "N5", "N4", "N3", "N2", "N1"
+ * @property {string} word - kanji / primary kana form
+ * @property {string} reading - hiragana reading
+ * @property {string} meaning - English gloss(es)
+ * @property {string} part_of_speech
+ * @property {string} example_jp
+ * @property {string} example_en
+ * @property {string} notes
+ * @property {string} source
+ * @property {string} created_at - ISO date string
+ */
+
+/**
+ * @typedef {Object} VocabReviewCard
+ * @property {number} id
+ * @property {number} vocab_word_id
+ * @property {number} interval
+ * @property {number} repetitions
+ * @property {number} e_factor
+ * @property {string} due_date - ISO date string
+ * @property {string|null} last_reviewed - ISO date string or null
+ */
+
+/**
+ * @typedef {VocabReviewCard & { vocab_word: VocabWord }} VocabQueueItem
+ */
+
 export {};

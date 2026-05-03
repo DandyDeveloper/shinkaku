@@ -84,3 +84,35 @@ export function gradeChallenge(grammarPointId, userSentence) {
     user_sentence: userSentence
   });
 }
+
+// --- Vocabulary ---
+
+/** @returns {Promise<import('./types').VocabWord[]>} */
+export function listVocab(jlptLevel = '') {
+  const qs = jlptLevel ? `?jlpt=${encodeURIComponent(jlptLevel)}` : '';
+  return request('GET', `/vocab${qs}`);
+}
+
+/** @returns {Promise<import('./types').VocabWord>} */
+export function getVocab(id) {
+  return request('GET', `/vocab/${id}`);
+}
+
+/** @returns {Promise<import('./types').VocabWord>} */
+export function createVocab(data) {
+  return request('POST', '/vocab', data);
+}
+
+/** @returns {Promise<{cards: import('./types').VocabQueueItem[], total: number}>} */
+export function getVocabReviewQueue() {
+  return request('GET', '/vocab/review/queue');
+}
+
+/**
+ * Submit a grade (0-5) for a vocab card.
+ * @param {number} cardId
+ * @param {number} grade
+ */
+export function submitVocabGrade(cardId, grade) {
+  return request('POST', `/vocab/review/${cardId}/grade`, { grade });
+}

@@ -32,6 +32,9 @@ func Open(path string) (*DB, error) {
 	if err := db.migrate(); err != nil {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
+	if err := db.seedStarterContent(); err != nil {
+		return nil, fmt.Errorf("seed starter content: %w", err)
+	}
 	return db, nil
 }
 

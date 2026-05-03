@@ -32,12 +32,19 @@ func NewRouter(database *db.DB, ollamaClient *llm.Client, authHandler *auth.Hand
 		r.Post("/grammar", createGrammar(database))
 		r.Get("/grammar/{id}", getGrammar(database))
 
-		// SRS review
+		// SRS review (grammar)
 		r.Get("/review/queue", getReviewQueue(database))
 		r.Post("/review/{id}/grade", submitGrade(database))
 
 		// LLM challenge
 		r.Post("/challenge/grade", gradeChallenge(database, ollamaClient))
+
+		// Vocabulary
+		r.Get("/vocab", listVocab(database))
+		r.Post("/vocab", createVocab(database))
+		r.Get("/vocab/review/queue", getVocabReviewQueue(database))
+		r.Post("/vocab/review/{id}/grade", submitVocabGrade(database))
+		r.Get("/vocab/{id}", getVocab(database))
 	})
 
 	// Health check

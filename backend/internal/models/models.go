@@ -61,3 +61,29 @@ type ChallengeRequest struct {
 type GradeRequest struct {
 	Grade int `json:"grade"` // 0–5
 }
+
+// VocabWord represents a single Japanese vocabulary item.
+type VocabWord struct {
+	ID            int64     `json:"id"`
+	JLPTLevel     string    `json:"jlpt_level"`     // e.g. "N5", "N4", …
+	Word          string    `json:"word"`           // kanji / primary kana form
+	Reading       string    `json:"reading"`        // hiragana reading
+	Meaning       string    `json:"meaning"`        // English gloss(es)
+	PartOfSpeech  string    `json:"part_of_speech"` // e.g. "noun", "verb (godan)"
+	ExampleJP     string    `json:"example_jp"`
+	ExampleEN     string    `json:"example_en"`
+	Notes         string    `json:"notes"`
+	Source        string    `json:"source"`    // e.g. "manual"
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+// VocabReviewCard is the SRS card associated with a vocab word.
+type VocabReviewCard struct {
+	ID           int64      `json:"id"`
+	VocabWordID  int64      `json:"vocab_word_id"`
+	Interval     int        `json:"interval"`
+	Repetitions  int        `json:"repetitions"`
+	EFactor      float64    `json:"e_factor"`
+	DueDate      time.Time  `json:"due_date"`
+	LastReviewed *time.Time `json:"last_reviewed,omitempty"`
+}

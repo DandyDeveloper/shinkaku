@@ -1,20 +1,26 @@
 <script>
   import { onMount } from 'svelte';
-  import { getReviewQueue, listGrammar } from '$lib/api.js';
+  import { getReviewQueue, getVocabReviewQueue, listGrammar, listVocab } from '$lib/api.js';
 
   let queue = [];
+  let vocabQueue = [];
   let totalGrammar = 0;
+  let totalVocab = 0;
   let loading = true;
   let error = '';
 
   onMount(async () => {
     try {
-      const [queueRes, grammarRes] = await Promise.all([
+      const [queueRes, vocabQueueRes, grammarRes, vocabRes] = await Promise.all([
         getReviewQueue(),
-        listGrammar()
+        getVocabReviewQueue(),
+        listGrammar(),
+        listVocab()
       ]);
       queue = queueRes.cards ?? [];
+      vocabQueue = vocabQueueRes.cards ?? [];
       totalGrammar = grammarRes.length ?? 0;
+      totalVocab = vocabRes.length ?? 0;
     } catch (e) {
       error = e.message;
     } finally {
@@ -44,11 +50,19 @@
     <div class="stats-grid">
       <div class="stat-card">
         <span class="stat-num">{queue.length}</span>
-        <span class="stat-label">Due today</span>
+        <span class="stat-label">Grammar due</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-num">{vocabQueue.length}</span>
+        <span class="stat-label">Vocab due</span>
       </div>
       <div class="stat-card">
         <span class="stat-num">{totalGrammar}</span>
         <span class="stat-label">Grammar points</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-num">{totalVocab}</span>
+        <span class="stat-label">Vocab words</span>
       </div>
     </div>
 
@@ -67,6 +81,16 @@
         <span class="nav-icon">🔍</span>
         <strong>Grammar</strong>
         <span>Browse & add points</span>
+      </a>
+      <a href="/vocab" class="nav-card">
+        <span class="nav-icon">🈶</span>
+        <strong>Vocabulary</strong>
+        <span>Browse & add words</span>
+      </a>
+      <a href="/vocab/review" class="nav-card" class:disabled={vocabQueue.length === 0}>
+        <span class="nav-icon">🧠</span>
+        <strong>Vocab Review</strong>
+        <span>{vocabQueue.length} card{vocabQueue.length !== 1 ? 's' : ''} due</span>
       </a>
     </div>
   {/if}

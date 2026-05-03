@@ -1,0 +1,8 @@
+services:
+  ollama:
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    group_add:
+      - "${VIDEO_GID:?set VIDEO_GID to the host video group id}"
+      - "${RENDER_GID:?set RENDER_GID to the host render group id}"

@@ -2,6 +2,8 @@
 
 A local Japanese grammar learning tool with spaced repetition (SM-2) and LLM-powered sentence grading via Ollama.
 
+On first startup, the backend automatically seeds the SQLite database with a built-in starter set of grammar points and review cards, so a fresh install is immediately usable.
+
 ## Stack
 
 - **Backend**: Go + chi router + SQLite (pure-Go, no CGO)
@@ -41,6 +43,56 @@ A local Japanese grammar learning tool with spaced repetition (SM-2) and LLM-pow
 > **Resource guide**: `qwen2.5:3b` (~2 GB), `llama3.2:3b` (~2 GB), `gemma3:4b` (~3 GB). Any of these run comfortably on a machine with 8 GB RAM and no GPU required.
 
 ## Quick Start
+
+### Docker Compose
+
+1. Copy [.env.example](/home/dandy/github.com/dandydeveloper/shinkaku/.env.example) to `.env` and fill in the required values.
+2. Start the default CPU stack:
+   ```bash
+   docker compose up --build
+   ```
+3. Pull the Ollama model you want to use:
+   ```bash
+   docker compose exec ollama ollama pull qwen2.5:3b
+   ```
+
+If the backend is being OOM-killed, raise `BACKEND_MEMORY_LIMIT` and keep `BACKEND_GO_MEMORY_LIMIT` slightly lower in `.env`. For example:
+
+```bash
+BACKEND_MEMORY_LIMIT=2g
+BACKEND_GO_MEMORY_LIMIT=1536MiB
+```
+
+On Docker Desktop or WSL2, the container cannot use more memory than the VM itself has been given, so you may also need to raise Docker Desktop's global memory allocation.
+
+### AMD GPU Setup
+
+Use the AMD override file when the host has a ROCm-capable AMD GPU and Docker can access `/dev/kfd` and `/dev/dri`.
+
+1. Confirm the device nodes exist:
+   ```bash
+   ls -l /dev/kfd /dev/dri/renderD128
+   ```
+2. Capture the host GIDs used by those devices and add them to `.env`:
+   ```bash
+   VIDEO_GID=$(getent group video | cut -d: -f3)
+   RENDER_GID=$(getent group render | cut -d: -f3)
+   ```
+   Then set `VIDEO_GID` and `RENDER_GID` in `.env`.
+3. If you are running rootless Docker, make sure your host user is also in the `video` and `render` groups before restarting Docker:
+   ```bash
+   sudo usermod -aG video,render "$USER"
+   ```
+4. Start the stack with the AMD override:
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.amd.yml up --build
+   ```
+5. For the production compose file, use the same override:
+   ```bash
+   docker compose -f docker-compose.prod.yml -f docker-compose.amd.yml up --build -d
+   ```
+
+The AMD override uses numeric `group_add` entries so the container matches the host device permissions instead of assuming the image's `video` and `render` groups use the same IDs.
 
 ### Backend
 

@@ -61,6 +61,7 @@
   async function startConversation() {
     if (!current) return;
     conversationLoading = true;
+    conversationPrompt = null;
     conversationError = '';
     conversationFeedback = null;
     conversationReply = '';

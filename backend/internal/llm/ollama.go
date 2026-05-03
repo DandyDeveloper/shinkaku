@@ -8,8 +8,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -192,6 +194,8 @@ func (c *Client) GenerateConversationPrompt(ctx context.Context, gp models.Gramm
 		return nil, err
 	}
 
+	log.Printf("raw conversation prompt response: %s", raw)
+
 	conversationPrompt, parsed := parseConversationPrompt(raw)
 	if !parsed {
 		return &models.ConversationPrompt{
@@ -365,17 +369,34 @@ func parseConversationPrompt(raw string) (*models.ConversationPrompt, bool) {
 		}
 	}
 
+	// Some models return almost-JSON with unquoted Japanese string values.
+	// Recover those fields directly before giving up on parsing.
+	scenario := extractJSONLikeStringField(raw, "scenario", "situation", "context")
+	assistantMessage := extractJSONLikeStringField(raw,
+		"assistant_message",
+		"assistantMessage",
+		"message",
+		"partner_message",
+		"conversation_starter",
+	)
+	if scenario != "" && assistantMessage != "" {
+		return &models.ConversationPrompt{
+			Scenario:         scenario,
+			AssistantMessage: assistantMessage,
+		}, true
+	}
+
 	var loose map[string]any
 	if err := json.Unmarshal([]byte(raw), &loose); err != nil {
 		return nil, false
 	}
 
-	scenario := firstString(loose,
+	scenario = firstString(loose,
 		"scenario",
 		"situation",
 		"context",
 	)
-	assistantMessage := firstString(loose,
+	assistantMessage = firstString(loose,
 		"assistant_message",
 		"assistantMessage",
 		"message",
@@ -400,6 +421,34 @@ func firstString(m map[string]any, keys ...string) string {
 		if v, ok := m[key]; ok {
 			if s, ok := v.(string); ok {
 				return s
+			}
+		}
+	}
+	return ""
+}
+
+func extractJSONLikeStringField(raw string, keys ...string) string {
+	for _, key := range keys {
+		quoted := regexp.MustCompile(`"` + regexp.QuoteMeta(key) + `"\s*:\s*"((?:\\.|[^"\\])*)"`)
+		if match := quoted.FindStringSubmatch(raw); len(match) == 2 {
+			if unescaped, err := strconv.Unquote("\"" + match[1] + "\""); err == nil {
+				value := strings.TrimSpace(unescaped)
+				if value != "" {
+					return value
+				}
+			}
+			value := strings.TrimSpace(match[1])
+			if value != "" {
+				return value
+			}
+		}
+
+		// Accept unquoted values that may contain commas and stop at next JSON key or closing brace.
+		bare := regexp.MustCompile(`(?s)"` + regexp.QuoteMeta(key) + `"\s*:\s*(.*?)(?:,\s*"[A-Za-z0-9_]+"\s*:|\s*})`)
+		if match := bare.FindStringSubmatch(raw); len(match) == 2 {
+			value := strings.TrimSpace(strings.Trim(match[1], `"'`))
+			if value != "" {
+				return value
 			}
 		}
 	}
